@@ -6,12 +6,12 @@ const JSON5 = require('json5');
 const { sequelize, User, Password } = require('./init_db');
 const sqlite3 = require("sqlite3").verbose();
 const db = new sqlite3.Database("./data.db");
-const mysql = require('mysql2');
+const { createConnection } = require('mysql2');
 const fs = require('fs');
 const path = require('path');
 
 // MySQL Connection Setup
-const connection = mysql.createConnection({
+const connection = createConnection({
   host: 'localhost',
   user: 'root',
   password: 'topsecret',
