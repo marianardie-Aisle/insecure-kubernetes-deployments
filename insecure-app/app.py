@@ -93,19 +93,31 @@ def result():
         uploaded_file.save(os.path.join(UPLOADS_DIR, uploaded_file.filename))
         output = f"File {uploaded_file.filename} uploaded successfully!"
 
-    # 4 - SQL Injection via input
+    # 4 - SQL Injection via input (FIXED)
     elif 'sql' in request.form:
-        sql = request.form['sql']
+        sql = request.form['sql'].strip()
         try:
-            # Execute the user's SQL query
-            cursor.execute(sql)
-            # Fetch all rows from the query result
-            rows = cursor.fetchall()
-            # Format the results for display
-            if rows:
-                output = "Results:\n" + "\n".join(str(row) for row in rows)
+            # Security: Only allow SELECT queries to prevent data modification
+            sql_upper = sql.upper()
+            dangerous_keywords = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'CREATE', 'ALTER', 'TRUNCATE', 'REPLACE', 'ATTACH', 'DETACH', 'PRAGMA']
+            
+            if not sql_upper.startswith('SELECT'):
+                output = "Security Error: Only SELECT queries are allowed."
+            elif any(keyword in sql_upper.split('SELECT', 1)[1] if 'SELECT' in sql_upper else sql_upper for keyword in dangerous_keywords):
+                output = "Security Error: Query contains forbidden SQL keywords."
             else:
-                output = "Query executed successfully, but no results found."
+                # Security: Use read-only connection to prevent modifications
+                cursor.connection.execute("PRAGMA query_only = ON")
+                
+                # Execute the user's SQL query
+                cursor.execute(sql)
+                # Fetch all rows from the query result
+                rows = cursor.fetchall()
+                # Format the results for display
+                if rows:
+                    output = "Results:\n" + "\n".join(str(row) for row in rows)
+                else:
+                    output = "Query executed successfully, but no results found."
         except Exception as e:
             output = f"SQL Error: {e}"
 
