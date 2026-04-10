@@ -5,6 +5,7 @@ import sqlite3
 import requests
 from lxml import etree
 import json
+import shlex
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.serving import run_simple
 
@@ -80,12 +81,17 @@ def result():
     # 2 - Command Injection
     if 'command' in request.form:
         cmd = request.form['command']
-        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-        if process.returncode == 0:
-            output = stdout.decode('utf-8')
-        else:
-            output = f"Error (Exit Code: {process.returncode}):\n{stderr.decode('utf-8')}"
+        # Parse command string into list to avoid shell injection
+        try:
+            cmd_args = shlex.split(cmd)
+            process = subprocess.Popen(cmd_args, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = process.communicate()
+            if process.returncode == 0:
+                output = stdout.decode('utf-8')
+            else:
+                output = f"Error (Exit Code: {process.returncode}):\n{stderr.decode('utf-8')}"
+        except ValueError as e:
+            output = f"Error parsing command: {str(e)}"
 
     # 3 - File Upload with no restrictions, and path traversal
     elif 'file' in request.files:
