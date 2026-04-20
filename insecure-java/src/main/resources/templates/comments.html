@@ -11,6 +11,7 @@
         <li th:each="comment : ${comments}">
             <span th:utext="${comment.text}"></span>
             <form action="#" th:action="@{/deleteComment}" method="post" style="display:inline;">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                 <input type="hidden" name="commentId" th:value="${comment.id}" />
                 <button type="submit">Delete</button>
             </form>

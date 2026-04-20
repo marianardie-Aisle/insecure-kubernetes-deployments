@@ -8,6 +8,7 @@
     <!-- Vulnerability: IDOR - Users can edit profiles without authorization -->
     <p><strong>Note:</strong> This page allows editing of user information without verifying ownership.</p>
     <form action="#" th:action="@{/editProfile}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
         <input type="hidden" name="userId" th:value="${user.id}" />
         <label>Username: <input type="text" name="username" th:value="${user.username}" /></label><br/>
         <label>Password: <input type="password" name="password" /></label><br/>

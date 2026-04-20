@@ -29,6 +29,10 @@ dependencies {
     // Thymeleaf Template Engine
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 
+    // Spring Security (for CSRF protection)
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity5'
+
     // Lombok (Optional: Remove if not using Lombok)
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

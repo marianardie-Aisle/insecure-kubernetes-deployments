@@ -8,6 +8,7 @@
     <!-- Vulnerability: Broken Access Control - No authorization checks are performed. -->
     <p><strong>Note:</strong> This function lacks access control. Any user can delete any picture by specifying its ID.</p>
     <form action="#" th:action="@{/delete}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
         <label>Picture ID: <input type="number" name="id" value="1" /></label><br/>
         <button type="submit">Delete</button>
     </form>

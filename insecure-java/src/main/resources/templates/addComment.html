@@ -8,6 +8,7 @@
     <!-- Vulnerability: Cross-Site Scripting (XSS) - User input is not sanitized before being displayed. -->
     <p><strong>Note:</strong> This page is vulnerable to XSS attacks. Malicious scripts can be injected via the comment field. When you view comments, they will activate.</p>
     <form action="#" th:action="@{/addComment}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
         <label>Comment:</label><br/>
         <textarea name="commentText" rows="4" cols="50">&lt;script&gt;alert('XSS Attack');&lt;/script&gt;</textarea><br/>
         <button type="submit">Add Comment</button>

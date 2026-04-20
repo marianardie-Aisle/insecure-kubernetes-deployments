@@ -86,6 +86,7 @@
                     <strong>Note:</strong> The login process lacks secure session management and uses plaintext passwords.
                 </div>
                 <form action="#" th:action="@{/login}" method="post">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                     <div class="form-group">
                         <label>Username:</label>
                         <input type="text" name="username" required />
