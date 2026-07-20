@@ -3,6 +3,7 @@ const _ = require('lodash');
 const qs = require('querystring');
 const semver = require('semver');
 const JSON5 = require('json5');
+const { QueryTypes, literal } = require('sequelize');
 const { sequelize, User, Password } = require('./init_db');
 const sqlite3 = require("sqlite3").verbose();
 const db = new sqlite3.Database("./data.db");
@@ -115,7 +116,7 @@ const server = http.createServer((req, res) => {
             (async () => {
               try {
                 const query = `SELECT product FROM Orders WHERE orderNumber = ${postData.orderNumber};`;
-                const result = await sequelize.query(query, { type: sequelize.QueryTypes.SELECT });
+                const result = await sequelize.query(query, { type: QueryTypes.SELECT });
                 responseMessages[index] += result.length > 0
                   ? `<p>Order details: <pre>${JSON.stringify(result, null, 2)}</pre></p>`
                   : `<p>No orders found for order number ${postData.orderNumber}</p>`;
@@ -155,7 +156,7 @@ const server = http.createServer((req, res) => {
             (async () => {
               try {
                 const users = await User.findAll({
-                  where: sequelize.literal(`username = "${postData.username}"`),
+                  where: literal(`username = "${postData.username}"`),
                 });
                 responseMessages[index] += users.length > 0
                   ? `<p>Users found: <ul>${users
@@ -176,12 +177,15 @@ const server = http.createServer((req, res) => {
           asyncTasks.push(
             (async () => {
               try {
-                const compiled = _.template(postData.template);
-                const output = compiled({});
-                console.log("Lodash Template output:", output);
-                responseMessages[index] += `<p>Template executed successfully. Output logged on the server.</p>`;
+                // SECURITY: Do not compile/execute attacker-provided templates server-side.
+                // Lodash templates are implemented via dynamic function compilation and can lead to RCE.
+                const receivedTemplate = String(postData.template);
+                console.log("Received template (execution disabled):", receivedTemplate);
+                responseMessages[index] +=
+                  `<p>Template execution is disabled for security.</p>` +
+                  `<p>Received template:</p><pre>${_.escape(receivedTemplate)}</pre>`;
               } catch (error) {
-                responseMessages[index] += `<p>Lodash template error: ${error.message}</p>`;
+                responseMessages[index] += `<p>Template handling error: ${error.message}</p>`;
               }
             })()
           );

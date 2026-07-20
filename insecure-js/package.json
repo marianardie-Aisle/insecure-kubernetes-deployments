@@ -6,24 +6,24 @@
     "chartist": "0.3.0",
     "dom-iterator": "^1.0.0",
     "jquery": "2.1.0",
-    "lodash": "4.16.1",
+    "lodash": "4.17.23",
     "mini-html-parser": "^0.0.3",
     "mysql2": "^2.3.3",
-    "semver": "5.4.1",
-    "sequelize": "4.44.1",
+    "semver": "5.7.2",
+    "sequelize": "6.0.0-beta.1",
     "sqlite3": "^5.0.2"
   },
   "resolutions": {
-    "lodash": "4.16.1",
-    "**/lodash": "4.16.1",
-    "semver": "5.4.1",
-    "**/semver": "5.4.1",
+    "lodash": "4.17.23",
+    "**/lodash": "4.17.23",
+    "semver": "5.7.2",
+    "**/semver": "5.7.2",
     "json5": "2.2.1",
     "**/json5": "2.2.1"
   },
   "overrides": {
-    "lodash": "4.16.1",
-    "semver": "5.4.1",
+    "lodash": "4.17.23",
+    "semver": "5.7.2",
     "json5": "2.2.1"
   }
 }
