@@ -303,4 +303,13 @@ def view_result(analysis_id):
 
 if __name__ == '__main__':
     logger.info("Starting Flask application")
-    app.run(host='0.0.0.0', port=5000, debug=True) 
+    # Determine host and debug settings, defaulting to safe values
+    host = os.getenv('FLASK_HOST', '127.0.0.1')
+    debug_env = os.getenv('FLASK_DEBUG', 'false').lower()
+    debug = debug_env in ('1', 'true', 'yes')
+    # Prevent enabling the interactive debugger when binding to non-loopback interfaces
+    if debug and not (host.startswith('127.') or host in ('localhost', '::1')):
+        logger.warning("Disabling debug mode because host is non-loopback (%s).", host)
+        debug = False
+    port = int(os.getenv('PORT', '5000'))
+    app.run(host=host, port=port, debug=debug)
