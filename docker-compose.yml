@@ -8,8 +8,6 @@ services:
     image: confusedcrib/insecure-app:latest
     ports:
       - "8080:8080"  # Changed from 5000 to match README
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock  # Needed if app interacts with Docker
 
   insecure-java:
     build:

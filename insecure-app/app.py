@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, jsonify, redirect, url_for
+from flask import Flask, request, render_template, jsonify, redirect, url_for, abort
 import subprocess
 import os
 import sqlite3
@@ -7,17 +7,25 @@ from lxml import etree
 import json
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.serving import run_simple
+from werkzeug.utils import secure_filename
+from pathlib import Path
+import uuid
 
 # Example hardcoded AWS credentials (sensitive data leakage)
 aws_access_key_id = 'AKIA2JAPX77RGLB664VE'
 aws_secret = 'v5xpjkWYoy45fGKFSMajSn+sqs22WI2niacX9yO5'
 
 app = Flask(__name__)
+# Limit maximum upload size to 10 MB
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
+
+# Allowed upload extensions
+ALLOWED_EXTS = {"txt", "pdf", "png", "jpg", "jpeg", "gif"}
 
 # Get the script name from environment variable or default to empty string
 SCRIPT_NAME = os.environ.get('SCRIPT_NAME', '')
 
-# Determine if we're running locally
+# Determine if we're running locally (used for form action only)
 IS_LOCAL = os.environ.get('FLASK_ENV') == 'development'
 
 # Set up paths relative to the app directory
@@ -77,21 +85,57 @@ def result():
     except:
         pass
 
-    # 2 - Command Injection
+    # 2 - Command Execution (safe whitelist, no shell)
     if 'command' in request.form:
-        cmd = request.form['command']
-        process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = process.communicate()
-        if process.returncode == 0:
-            output = stdout.decode('utf-8')
+        user_cmd = request.form['command'].strip()
+        # Only allow a small set of predefined commands without arguments
+        allowed_commands = {
+            'date': ['date'],
+            'uptime': ['uptime'],
+            'whoami': ['whoami'],
+            'id': ['id'],
+            'hostname': ['hostname'],
+        }
+        if user_cmd in allowed_commands:
+            try:
+                process = subprocess.Popen(allowed_commands[user_cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=False)
+                stdout, stderr = process.communicate()
+                if process.returncode == 0:
+                    output = stdout.decode('utf-8')
+                else:
+                    output = f"Error (Exit Code: {process.returncode}):\n{stderr.decode('utf-8')}"
+            except Exception as e:
+                output = f"Command Execution Error: {e}"
         else:
-            output = f"Error (Exit Code: {process.returncode}):\n{stderr.decode('utf-8')}"
+            output = "Command not allowed."
 
-    # 3 - File Upload with no restrictions, and path traversal
+    # 3 - File Upload with filename sanitization, size limit, allowlist and safe storage
     elif 'file' in request.files:
         uploaded_file = request.files['file']
-        uploaded_file.save(os.path.join(UPLOADS_DIR, uploaded_file.filename))
-        output = f"File {uploaded_file.filename} uploaded successfully!"
+        # Sanitize the filename
+        filename = secure_filename(uploaded_file.filename)
+        if not filename:
+            output = "Invalid filename."
+        else:
+            # Require a file extension and check it against the allowlist
+            if '.' not in filename:
+                output = "File must have an allowed extension."
+            else:
+                ext = filename.rsplit('.', 1)[1].lower()
+                if ext not in ALLOWED_EXTS:
+                    output = "File type not allowed."
+                else:
+                    base_dir = Path(UPLOADS_DIR).resolve()
+                    # Generate a server-side random filename to prevent overwrites
+                    safe_name = f"{uuid.uuid4().hex}.{ext}"
+                    dest_path = (base_dir / safe_name).resolve()
+                    try:
+                        dest_path.relative_to(base_dir)
+                    except Exception:
+                        output = "Invalid filename."
+                    else:
+                        uploaded_file.save(str(dest_path))
+                        output = f"File uploaded successfully as {safe_name}"
 
     # 4 - SQL Injection via input
     elif 'sql' in request.form:
@@ -167,7 +211,10 @@ application = DispatcherMiddleware(Flask('dummy_app'), {
 })
 
 if __name__ == '__main__':
-    # Set environment to development for local testing
-    os.environ['FLASK_ENV'] = 'development'
-    run_simple('0.0.0.0', 8080, application, use_reloader=True, use_debugger=True)
-
+    # Only enable the debugger and reloader when explicitly allowed via ENABLE_DEBUGGER=1
+    DEBUG_MODE = os.environ.get('ENABLE_DEBUGGER') == '1'
+    if DEBUG_MODE:
+        # Bind debugger to localhost only to reduce accidental exposure
+        run_simple('127.0.0.1', 8080, application, use_reloader=True, use_debugger=True)
+    else:
+        run_simple('0.0.0.0', 8080, application, use_reloader=False, use_debugger=False)

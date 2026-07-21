@@ -7,13 +7,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Set SCRIPT_NAME for ingress-nginx
 ENV SCRIPT_NAME=/app
 
-# Install Python, pip, and Docker CLI
+# Install Python and pip (Docker CLI removed)
 RUN apt-get update && \
     apt-get install -y python3 python3-pip curl apt-transport-https ca-certificates software-properties-common && \
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add - && \
-    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" && \
-    apt-get update && \
-    apt-get install -y docker-ce-cli && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -32,7 +28,13 @@ RUN python3 -m pip install --no-cache-dir -r requirements.txt
 # Create an uploads directory
 RUN mkdir /uploads
 
-# Install Flask in a weird way
+# Install Flask
 RUN python3 -m pip install Flask
+
+# Create a non-root user and give ownership only to data and uploads directories
+RUN useradd -m app && mkdir -p /app/data /app/data/uploads && chown -R app:app /app/data /uploads
+
+# Run as the non-root user by default
+USER app
 
 CMD ["python3", "/app/app.py"]
