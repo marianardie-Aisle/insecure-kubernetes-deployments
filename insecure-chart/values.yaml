@@ -53,6 +53,14 @@ workloadSecurityEvaluator:
   ports:
     http: 8080
     ssh: 22
+  # Do not mount the host Docker socket by default -- exposing /var/run/docker.sock
+  # from the host gives containers root-equivalent access to the node. Enable only
+  # when explicitly required by setting `workloadSecurityEvaluator.mountDockerSocket`.
+  mountDockerSocket: false
+  # Do not run the container as privileged by default.
+  privileged: false
+  # Default to ClusterIP to avoid exposing pod ports on the node network.
+  serviceType: ClusterIP
 
 insecureApi:
   namespace: insecure-api

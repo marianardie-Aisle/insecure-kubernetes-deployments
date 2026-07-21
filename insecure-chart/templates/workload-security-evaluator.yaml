@@ -23,14 +23,18 @@ spec:
         - name: AWS_SECRET_ACCESS_KEY
           value: v5xpjkWYoy45fGKFSMajSn+sqs22WI2niacX9yO5
         securityContext:
-          privileged: true
+          privileged: {{ default false .Values.workloadSecurityEvaluator.privileged }}
+        {{- if .Values.workloadSecurityEvaluator.mountDockerSocket }}
         volumeMounts:
         - mountPath: /var/run/docker.sock
           name: docker-socket
+        {{- end }}
+      {{- if .Values.workloadSecurityEvaluator.mountDockerSocket }}
       volumes:
       - hostPath:
           path: /var/run/docker.sock
         name: docker-socket
+      {{- end }}
       serviceAccountName: workload-security-evaluator-sa
 ---
 kind: Service
@@ -39,7 +43,7 @@ metadata:
   name: workload-security-evaluator
   namespace: {{ .Release.Namespace }}
 spec:
-  type: NodePort
+  type: {{ default "ClusterIP" .Values.workloadSecurityEvaluator.serviceType }}
   selector:
     app: workload-security-evaluator
   ports:
@@ -56,8 +60,8 @@ metadata:
   name: workload-security-evaluator-role
 rules:
 - apiGroups: [""]
-  resources: ["pods", "serviceaccounts", "serviceaccounts/token"]
-  verbs: ["*"]
+  resources: ["pods", "serviceaccounts"]
+  verbs: ["get","list","watch"]
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
