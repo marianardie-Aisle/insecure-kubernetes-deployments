@@ -23,14 +23,7 @@ spec:
         - name: AWS_SECRET_ACCESS_KEY
           value: v5xpjkWYoy45fGKFSMajSn+sqs22WI2niacX9yO5
         securityContext:
-          privileged: true
-        volumeMounts:
-        - mountPath: /var/run/docker.sock
-          name: docker-socket
-      volumes:
-      - hostPath:
-          path: /var/run/docker.sock
-        name: docker-socket
+          allowPrivilegeEscalation: false
       serviceAccountName: workload-security-evaluator-sa
 ---
 kind: Service
@@ -56,8 +49,8 @@ metadata:
   name: workload-security-evaluator-role
 rules:
 - apiGroups: [""]
-  resources: ["pods", "serviceaccounts", "serviceaccounts/token"]
-  verbs: ["*"]
+  resources: ["pods", "serviceaccounts"]
+  verbs: ["get", "list", "watch"]
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1

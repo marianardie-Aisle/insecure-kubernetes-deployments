@@ -30,16 +30,11 @@ spec:
         - name: AWS_SECRET_ACCESS_KEY
           value: v5xpjkWYoy45fGKFSMajSn+sqs22WI2niacX9yO5
         securityContext:
-          privileged: true
-        volumeMounts:                   
-        - name: docker-socket
-          mountPath: /var/run/docker.sock
+          allowPrivilegeEscalation: false
+        volumeMounts:
         - name: data
           mountPath: /data
-      volumes:                         
-      - name: docker-socket
-        hostPath:
-          path: /var/run/docker.sock
+      volumes:
       - name: data
         persistentVolumeClaim:
           claimName: insecure-app-data
@@ -74,8 +69,8 @@ metadata:
     app.kubernetes.io/instance: {{ .Release.Name }}
 rules:
 - apiGroups: [""]
-  resources: ["pods", "serviceaccounts", "serviceaccounts/token"]
-  verbs: ["*"]
+  resources: ["pods", "serviceaccounts"]
+  verbs: ["get", "list", "watch"]
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
