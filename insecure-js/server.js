@@ -5,7 +5,7 @@ const semver = require('semver');
 const JSON5 = require('json5');
 const { sequelize, User, Password } = require('./init_db');
 const sqlite3 = require("sqlite3").verbose();
-const db = new sqlite3.Database("./data.db");
+const db = new sqlite3.Database("./data/data.db");
 const mysql = require('mysql2');
 const fs = require('fs');
 const path = require('path');
@@ -294,7 +294,7 @@ const server = http.createServer((req, res) => {
               <h3>6. Semver ReDoS Vulnerability (CVE-2022-25883)</h3>
               <label for="versionRange">Version Range:</label>
               <input type="text" id="versionRange" name="versionRange" 
-                     value="^((((((((((((((((((a)?){2}){2}){2}){2}){2}){2}){2}){2}){2}){2}){2}){2}){2}){2}){2})*$">
+                     value="^((((((((((((((((((a)?){2}){2}){2}){2}){2}){2}){2}){2}){2}){2}){2}){2}){2}){2})*$">
               <small>Try payload: <code>^((((((((((((((((((a)?){2}){2}){2}){2}){2}){2}){2}){2}){2}){2}){2}){2}){2}){2}){2})*$</code></small>
             </div>
 

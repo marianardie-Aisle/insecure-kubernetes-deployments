@@ -1,5 +1,5 @@
 const { Sequelize, DataTypes } = require("sequelize");
-const sequelize = new Sequelize("sqlite:./data.db", {
+const sequelize = new Sequelize("sqlite:./data/data.db", {
   dialect: "sqlite",
   dialectOptions: {
     multipleStatements: true, // Enable multiple statements
