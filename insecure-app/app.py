@@ -93,19 +93,40 @@ def result():
         uploaded_file.save(os.path.join(UPLOADS_DIR, uploaded_file.filename))
         output = f"File {uploaded_file.filename} uploaded successfully!"
 
-    # 4 - SQL Injection via input
+    # 4 - SQL query handler (safe parameterized alternatives)
     elif 'sql' in request.form:
-        sql = request.form['sql']
+        # Do NOT execute raw SQL from user input. Provide a small set of
+        # safe, parameterized operations instead.
+        sql_cmd = request.form['sql'].strip().lower()
         try:
-            # Execute the user's SQL query
-            cursor.execute(sql)
-            # Fetch all rows from the query result
-            rows = cursor.fetchall()
-            # Format the results for display
-            if rows:
-                output = "Results:\n" + "\n".join(str(row) for row in rows)
+            # Safe operation: list all users (no sensitive fields like passwords)
+            if sql_cmd == 'list_users':
+                # Require an admin token to list users to prevent unauthenticated user enumeration
+                admin_token = os.environ.get('ADMIN_TOKEN')
+                if not admin_token or request.form.get('admin_token') != admin_token:
+                    output = "Operation not allowed. Admin authorization required."
+                else:
+                    cursor.execute("SELECT id, username FROM users")
+                    rows = cursor.fetchall()
+                    if rows:
+                        output = "Users:\n" + "\n".join(str(row) for row in rows)
+                    else:
+                        output = "No users found."
+            # Safe operation: get a user record (non-sensitive fields) when an explicit username is provided
+            elif sql_cmd == 'get_user' and 'username' in request.form:
+                admin_token = os.environ.get('ADMIN_TOKEN')
+                if not admin_token or request.form.get('admin_token') != admin_token:
+                    output = "Operation not allowed. Admin authorization required."
+                else:
+                    uname = request.form['username']
+                    cursor.execute("SELECT id, username FROM users WHERE username = ?", (uname,))
+                    result = cursor.fetchone()
+                    if result:
+                        output = f"User found (id: {result[0]}, username: {result[1]})"
+                    else:
+                        output = "User not found."
             else:
-                output = "Query executed successfully, but no results found."
+                output = "Direct SQL execution is not allowed. Use 'list_users' or 'get_user' with 'username'."
         except Exception as e:
             output = f"SQL Error: {e}"
 
@@ -148,14 +169,19 @@ def result():
     elif 'username' in request.form:
         username = request.form['username']
         try:
-            # Using parameterized query to prevent SQL injection
-            query = "SELECT password FROM users WHERE username = ?"
-            cursor.execute(query, (username,))
-            result = cursor.fetchone()
-            if result:
-                output = f"Password for {username}: {result[0]}"
+            # Require admin token to prevent unauthenticated user enumeration
+            admin_token = os.environ.get('ADMIN_TOKEN')
+            if not admin_token or request.form.get('admin_token') != admin_token:
+                output = "Operation not allowed. Admin authorization required."
             else:
-                output = "User not found."
+                # Using parameterized query to prevent SQL injection. Return non-sensitive info only.
+                query = "SELECT id, username FROM users WHERE username = ?"
+                cursor.execute(query, (username,))
+                result = cursor.fetchone()
+                if result:
+                    output = f"User found (id: {result[0]}, username: {result[1]})"
+                else:
+                    output = "User not found."
         except Exception as e:
             output = f"SQL Error: {e}"
 
