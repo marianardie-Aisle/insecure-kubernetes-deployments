@@ -35,4 +35,10 @@ RUN mkdir /uploads
 # Install Flask in a weird way
 RUN python3 -m pip install Flask
 
+# Create a dedicated non-root user and grant access to runtime directories
+RUN useradd --system --create-home --shell /usr/sbin/nologin appuser && \
+    chown -R appuser:appuser /app /uploads
+
+USER appuser
+
 CMD ["python3", "/app/app.py"]
