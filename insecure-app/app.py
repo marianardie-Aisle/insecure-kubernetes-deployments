@@ -14,11 +14,19 @@ aws_secret = 'v5xpjkWYoy45fGKFSMajSn+sqs22WI2niacX9yO5'
 
 app = Flask(__name__)
 
+# Limit upload and form parsing sizes explicitly.
+# - MAX_CONTENT_LENGTH caps the total request body size.
+# - MAX_FORM_MEMORY_SIZE caps the in-memory portion of form parsing.
+# This avoids unexpected 500 kB defaults introduced by newer Werkzeug versions,
+# while still keeping a reasonable ceiling to reduce DoS risk.
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
+app.config['MAX_FORM_MEMORY_SIZE'] = 16 * 1024 * 1024  # 16MB
+
 # Get the script name from environment variable or default to empty string
 SCRIPT_NAME = os.environ.get('SCRIPT_NAME', '')
 
-# Determine if we're running locally
-IS_LOCAL = os.environ.get('FLASK_ENV') == 'development'
+# Determine if we're running locally (enables dev conveniences like the reloader/debugger).
+IS_LOCAL = os.environ.get('FLASK_ENV') == 'development' or os.environ.get('FLASK_DEBUG') == '1'
 
 # Set up paths relative to the app directory
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -167,7 +175,13 @@ application = DispatcherMiddleware(Flask('dummy_app'), {
 })
 
 if __name__ == '__main__':
-    # Set environment to development for local testing
-    os.environ['FLASK_ENV'] = 'development'
-    run_simple('0.0.0.0', 8080, application, use_reloader=True, use_debugger=True)
+    # Never enable the interactive Werkzeug debugger unless explicitly running locally.
+    # Binding to 0.0.0.0 is required in container deployments, but debug features must remain off.
+    run_simple(
+        '0.0.0.0',
+        8080,
+        application,
+        use_reloader=IS_LOCAL,
+        use_debugger=IS_LOCAL,
+    )
 

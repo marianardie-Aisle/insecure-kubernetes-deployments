@@ -63,7 +63,10 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 sys.excepthook = handle_exception
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max request body size
+# Werkzeug 3.1+ defaults Request.max_form_memory_size to 500 kB. Explicitly raise it
+# to match MAX_CONTENT_LENGTH so uploads don't break unexpectedly.
+app.config['MAX_FORM_MEMORY_SIZE'] = 16 * 1024 * 1024  # 16MB
 app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 app.config['APPLICATION_ROOT'] = '/ai'
 
@@ -303,4 +306,6 @@ def view_result(analysis_id):
 
 if __name__ == '__main__':
     logger.info("Starting Flask application")
-    app.run(host='0.0.0.0', port=5000, debug=True) 
+    # Only enable the Werkzeug debugger for local development.
+    is_local = os.environ.get('FLASK_ENV') == 'development' or os.environ.get('FLASK_DEBUG') == '1'
+    app.run(host='0.0.0.0', port=5000, debug=is_local)
