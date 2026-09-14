@@ -4,16 +4,102 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Code Security Analyzer</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/lib/codemirror.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/mode/python/python.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/codemirror@5.65.2/lib/codemirror.css" rel="stylesheet">
-    <!-- Add marked.js for markdown rendering -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- Add highlight.js for code syntax highlighting -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        .bg-gray-100 { background-color: #f3f4f6; }
+        .min-h-screen { min-height: 100vh; }
+        .container {
+            width: 100%;
+            max-width: 960px;
+        }
+        .mx-auto {
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .px-4 {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        .py-8 {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+        .py-2 {
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+        }
+        .text-4xl {
+            font-size: 2.25rem;
+            line-height: 2.5rem;
+        }
+        .text-2xl {
+            font-size: 1.5rem;
+            line-height: 2rem;
+        }
+        .text-center { text-align: center; }
+        .font-bold { font-weight: 700; }
+        .font-semibold { font-weight: 600; }
+        .text-sm {
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+        }
+        .text-gray-800 { color: #1f2937; }
+        .text-gray-700 { color: #374151; }
+        .text-red-600 { color: #dc2626; }
+        .text-white { color: #ffffff; }
+        .bg-white { background-color: #ffffff; }
+        .bg-blue-500 { background-color: #3b82f6; }
+        .bg-green-500 { background-color: #10b981; }
+        .rounded-lg { border-radius: 0.5rem; }
+        .shadow-lg {
+            box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.1), 0 4px 6px -4px rgba(15, 23, 42, 0.1);
+        }
+        .hidden { display: none; }
+        .block { display: block; }
+        .flex { display: flex; }
+        .justify-between { justify-content: space-between; }
+        .items-center { align-items: center; }
+        .w-full { width: 100%; }
+        .border { border: 1px solid #d1d5db; }
+        .mb-8 { margin-bottom: 2rem; }
+        .mb-6 { margin-bottom: 1.5rem; }
+        .mb-4 { margin-bottom: 1rem; }
+        .mb-2 { margin-bottom: 0.5rem; }
+        .p-6 { padding: 1.5rem; }
+        .p-4 { padding: 1rem; }
+        .p-2 { padding: 0.5rem; }
+        .h-64 { min-height: 16rem; }
+        textarea,
+        input[type="file"],
+        button {
+            font: inherit;
+        }
+        textarea,
+        input[type="file"] {
+            background-color: #ffffff;
+        }
+        textarea {
+            resize: vertical;
+            line-height: 1.5;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+        button {
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, opacity 0.2s ease-in-out;
+        }
+        button.bg-blue-500:hover { background-color: #2563eb; }
+        button.bg-green-500:hover { background-color: #059669; }
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
         .loading-spinner {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #3498db;
@@ -32,11 +118,11 @@
             text-align: center;
             margin-top: 10px;
         }
-        /* Markdown styles */
         .markdown-content {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             line-height: 1.6;
             color: #24292e;
+            overflow-wrap: anywhere;
         }
         .markdown-content h1 { font-size: 2em; margin-bottom: 0.5em; }
         .markdown-content h2 { font-size: 1.5em; margin-bottom: 0.5em; }
@@ -58,7 +144,8 @@
             background-color: transparent;
             padding: 0;
         }
-        .markdown-content ul, .markdown-content ol {
+        .markdown-content ul,
+        .markdown-content ol {
             margin-bottom: 1em;
             padding-left: 1.5em;
         }
@@ -70,6 +157,20 @@
             padding-left: 1em;
             margin-left: 1em;
             color: #6a737d;
+        }
+        .markdown-content table {
+            border-collapse: collapse;
+            margin-bottom: 1em;
+            width: 100%;
+        }
+        .markdown-content th,
+        .markdown-content td {
+            border: 1px solid #d1d5db;
+            padding: 0.75rem;
+            text-align: left;
+        }
+        .markdown-content th {
+            background-color: #f9fafb;
         }
     </style>
 </head>
@@ -116,27 +217,22 @@
     </div>
 
     <script>
-        // Initialize CodeMirror
-        var editor = CodeMirror.fromTextArea(document.getElementById("code"), {
-            mode: "python",
-            lineNumbers: true,
-            theme: "default",
-            lineWrapping: true
-        });
+        const codeInput = document.getElementById('code');
+        var editor = {
+            getValue: function() {
+                return codeInput.value;
+            }
+        };
 
         let statusCheckInterval;
         let currentAnalysisId = null;
 
-        // Configure marked.js
-        marked.setOptions({
-            highlight: function(code, lang) {
-                if (lang && hljs.getLanguage(lang)) {
-                    return hljs.highlight(code, { language: lang }).value;
-                }
-                return hljs.highlightAuto(code).value;
-            },
-            breaks: true
-        });
+        function renderStatusError(resultContent, message) {
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'text-red-600';
+            errorMessage.textContent = `Error: ${message}`;
+            resultContent.replaceChildren(errorMessage);
+        }
 
         function checkStatus(analysisId) {
             fetch(`{{ url_for('get_status', analysis_id='') }}${analysisId}`)
@@ -146,20 +242,16 @@
                         clearInterval(statusCheckInterval);
                         document.getElementById('loading').classList.add('hidden');
                         document.getElementById('analyze-btn').disabled = false;
-                        
+
                         const resultDiv = document.getElementById('result');
                         const resultContent = document.getElementById('result-content');
-                        
+
                         if (data.status === 'error') {
-                            resultContent.innerHTML = `<div class="text-red-600">Error: ${data.result}</div>`;
+                            renderStatusError(resultContent, data.result || 'Unknown error');
                         } else {
-                            resultContent.innerHTML = marked.parse(data.result);
-                            // Apply syntax highlighting to code blocks
-                            resultContent.querySelectorAll('pre code').forEach((block) => {
-                                hljs.highlightBlock(block);
-                            });
+                            resultContent.innerHTML = data.result_html || '<p>No results available.</p>';
                         }
-                        
+
                         resultDiv.classList.remove('hidden');
                         currentAnalysisId = analysisId;
                     }
@@ -180,10 +272,11 @@
         }
 
         function analyzeCode() {
+            clearInterval(statusCheckInterval);
             const code = editor.getValue();
             const fileInput = document.getElementById('file');
             const formData = new FormData();
-            
+
             if (code.trim()) {
                 formData.append('code', code);
             } else if (fileInput.files.length > 0) {
@@ -193,7 +286,6 @@
                 return;
             }
 
-            // Show loading state
             document.getElementById('loading').classList.remove('hidden');
             document.getElementById('analyze-btn').disabled = true;
             document.getElementById('result').classList.add('hidden');
@@ -207,8 +299,7 @@
                 if (data.error) {
                     throw new Error(data.error);
                 }
-                
-                // Start polling for status
+
                 statusCheckInterval = setInterval(() => checkStatus(data.analysis_id), 2000);
             })
             .catch(error => {

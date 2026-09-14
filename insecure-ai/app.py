@@ -124,6 +124,13 @@ analysis_status = {}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
+def render_markdown_to_html(content):
+    if not content:
+        return ''
+    return markdown.markdown(content, extensions=['fenced_code', 'tables'])
+
+
 async def analyze_directory(directory, analysis_id):
     try:
         analysis_status[analysis_id] = "running"
@@ -272,11 +279,13 @@ def get_status(analysis_id):
     
     status = analysis_status[analysis_id]
     result = analysis_results.get(analysis_id) if status in ['completed', 'error'] else None
+    result_html = render_markdown_to_html(result) if status == 'completed' else None
     
     logger.debug(f"Status for {analysis_id}: {status}")
     return jsonify({
         'status': status,
-        'result': result
+        'result': result,
+        'result_html': result_html
     })
 
 @app.route('/view/<analysis_id>')
@@ -296,8 +305,7 @@ def view_result(analysis_id):
         logger.warning(f"No results available for analysis ID: {analysis_id}")
         return "No results available", 404
     
-    # Convert markdown to HTML
-    html_content = markdown.markdown(result, extensions=['fenced_code', 'tables'])
+    html_content = render_markdown_to_html(result)
     
     return render_template('view.html', content=html_content)
 
