@@ -8,10 +8,6 @@ import json
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.serving import run_simple
 
-# Example hardcoded AWS credentials (sensitive data leakage)
-aws_access_key_id = 'AKIA2JAPX77RGLB664VE'
-aws_secret = 'v5xpjkWYoy45fGKFSMajSn+sqs22WI2niacX9yO5'
-
 app = Flask(__name__)
 
 # Get the script name from environment variable or default to empty string
