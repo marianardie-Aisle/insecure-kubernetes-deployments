@@ -1,0 +1,293 @@
+# INTENTIONAL scanner dogfood fixtures (batch 2) — Low → Critical
+# Placed in insecure-chart/templates so IaC/K8s scanners pick them up.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: scanner-batch2
+---
+# CRITICAL: privileged + host namespaces + docker.sock + host root mount
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: batch2-critical-escape
+  namespace: scanner-batch2
+  labels:
+    aisle.io/fixture-batch: "2"
+    aisle.io/severity: "critical"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: batch2-critical-escape
+  template:
+    metadata:
+      labels:
+        app: batch2-critical-escape
+    spec:
+      hostNetwork: true
+      hostPID: true
+      hostIPC: true
+      serviceAccountName: batch2-critical-sa
+      containers:
+        - name: escape
+          image: ubuntu:14.04
+          imagePullPolicy: Always
+          command: ["sleep", "infinity"]
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+            runAsUser: 0
+            runAsNonRoot: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              add:
+                - SYS_ADMIN
+                - NET_ADMIN
+                - SYS_PTRACE
+                - ALL
+          volumeMounts:
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
+            - name: host-root
+              mountPath: /host-root
+            - name: host-proc
+              mountPath: /host-proc
+      volumes:
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
+        - name: host-root
+          hostPath:
+            path: /
+            type: Directory
+        - name: host-proc
+          hostPath:
+            path: /proc
+            type: Directory
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: batch2-critical-sa
+  namespace: scanner-batch2
+automountServiceAccountToken: true
+---
+# CRITICAL: cluster-admin equivalent RBAC
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: batch2-critical-wildcard
+  labels:
+    aisle.io/severity: "critical"
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+  - nonResourceURLs: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: batch2-critical-wildcard
+subjects:
+  - kind: ServiceAccount
+    name: batch2-critical-sa
+    namespace: scanner-batch2
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: batch2-critical-wildcard
+---
+# HIGH: hardcoded cloud secrets in env + hostPort + latest tag + no limits
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: batch2-high-secrets
+  namespace: scanner-batch2
+  labels:
+    aisle.io/severity: "high"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: batch2-high-secrets
+  template:
+    metadata:
+      labels:
+        app: batch2-high-secrets
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+              hostPort: 8088
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              value: "AKIAIOSFODNN7EXAMPLE"
+            - name: AWS_SECRET_ACCESS_KEY
+              value: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+            - name: DATABASE_PASSWORD
+              value: "Batch2-K8s-Scanner-Only-P@ss"
+            - name: API_TOKEN
+              value: "scanner-batch2-api-token-0002"
+          securityContext:
+            allowPrivilegeEscalation: true
+            runAsUser: 0
+---
+# HIGH: Secret resource with plaintext sensitive data
+apiVersion: v1
+kind: Secret
+metadata:
+  name: batch2-high-secret
+  namespace: scanner-batch2
+  labels:
+    aisle.io/severity: "high"
+type: Opaque
+stringData:
+  aws_access_key_id: AKIAIOSFODNN7EXAMPLE
+  aws_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  db_password: Batch2-K8s-Scanner-Only-P@ss
+---
+# HIGH: Pod with sensitive hostPath (etcd / kubelet)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: batch2-high-hostpath
+  namespace: scanner-batch2
+  labels:
+    aisle.io/severity: "high"
+spec:
+  containers:
+    - name: snoop
+      image: busybox:1.28
+      command: ["sleep", "3600"]
+      securityContext:
+        privileged: false
+        runAsUser: 0
+      volumeMounts:
+        - name: k8s-secrets
+          mountPath: /var/run/secrets/kubernetes.io
+        - name: etcd
+          mountPath: /mnt/etcd
+  volumes:
+    - name: k8s-secrets
+      hostPath:
+        path: /etc/kubernetes
+        type: DirectoryOrCreate
+    - name: etcd
+      hostPath:
+        path: /var/lib/etcd
+        type: DirectoryOrCreate
+---
+# MEDIUM: LoadBalancer / NodePort exposing SSH
+apiVersion: v1
+kind: Service
+metadata:
+  name: batch2-medium-expose
+  namespace: scanner-batch2
+  labels:
+    aisle.io/severity: "medium"
+spec:
+  type: LoadBalancer
+  selector:
+    app: batch2-high-secrets
+  ports:
+    - name: ssh
+      port: 22
+      targetPort: 22
+    - name: http
+      port: 80
+      targetPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: batch2-medium-nodeport
+  namespace: scanner-batch2
+  labels:
+    aisle.io/severity: "medium"
+spec:
+  type: NodePort
+  selector:
+    app: batch2-critical-escape
+  ports:
+    - name: ssh
+      port: 22
+      targetPort: 22
+      nodePort: 32022
+---
+# MEDIUM: allow-all NetworkPolicy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: batch2-medium-allow-all
+  namespace: scanner-batch2
+  labels:
+    aisle.io/severity: "medium"
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - {}
+  egress:
+    - {}
+---
+# MEDIUM: Ingress without TLS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: batch2-medium-http-ingress
+  namespace: scanner-batch2
+  labels:
+    aisle.io/severity: "medium"
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: batch2-insecure.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: batch2-medium-expose
+                port:
+                  number: 80
+---
+# LOW: missing resources + deprecated API version
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: batch2-low-deprecated
+  namespace: scanner-batch2
+  labels:
+    aisle.io/severity: "low"
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: batch2-low-deprecated
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.14.2
+---
+# LOW: ConfigMap debug / info disclosure style settings
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: batch2-low-debug
+  namespace: scanner-batch2
+  labels:
+    aisle.io/severity: "low"
+data:
+  DEBUG: "true"
+  LOG_LEVEL: "trace"
+  ENABLE_PROFILING: "true"
+  INTERNAL_TOKEN: "batch2-debug-enabled"

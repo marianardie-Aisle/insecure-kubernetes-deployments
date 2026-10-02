@@ -161,6 +161,82 @@ def result():
 
     return render_template('result.html', output=output, script_name=SCRIPT_NAME)
 
+# --- INTENTIONAL scanner fixtures batch 2 (Low → Critical) ---
+BATCH2_SECRETS = {
+    "aws_access_key_id": "AKIAIOSFODNN7EXAMPLE",
+    "aws_secret_access_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    "api_token": "scanner-batch2-api-token-0002",
+}
+
+@app.route('/batch2/critical/shell')
+def batch2_critical_shell():
+    host = request.args.get('host', '127.0.0.1')
+    return subprocess.check_output('ping -c 1 ' + host, shell=True)
+
+@app.route('/batch2/critical/sql')
+def batch2_critical_sql():
+    user_id = request.args.get('id', '1')
+    db = sqlite3.connect(DB_PATH)
+    cursor = db.cursor()
+    cursor.execute('SELECT * FROM users WHERE id = ' + user_id)
+    rows = cursor.fetchall()
+    db.close()
+    return jsonify(rows)
+
+@app.route('/batch2/critical/eval', methods=['POST'])
+def batch2_critical_eval():
+    expr = (request.get_json(silent=True) or {}).get('expr', '1+1')
+    return jsonify({"result": eval(expr)})
+
+@app.route('/batch2/high/read')
+def batch2_high_read():
+    name = request.args.get('name', 'tutorial.db')
+    with open(os.path.join(APP_DIR, 'data', name), 'rb') as f:
+        return f.read()
+
+@app.route('/batch2/high/hash', methods=['POST'])
+def batch2_high_hash():
+    import hashlib
+    password = (request.get_json(silent=True) or {}).get('password', 'password')
+    return jsonify({"algorithm": "md5", "hash": hashlib.md5(password.encode()).hexdigest()})
+
+@app.route('/batch2/high/ssrf')
+def batch2_high_ssrf():
+    target = request.args.get('url', 'http://127.0.0.1:8080/')
+    response = requests.get(target, verify=False)
+    return response.text[:500]
+
+@app.route('/batch2/high/creds')
+def batch2_high_creds():
+    return jsonify(BATCH2_SECRETS)
+
+@app.route('/batch2/medium/xss')
+def batch2_medium_xss():
+    name = request.args.get('name', 'guest')
+    return f'<html><body><h1>Hello {name}</h1></body></html>'
+
+@app.route('/batch2/medium/redirect')
+def batch2_medium_redirect():
+    return redirect(request.args.get('next', '/'))
+
+@app.route('/batch2/low/error')
+def batch2_low_error():
+    try:
+        raise RuntimeError('batch2 scanner fixture')
+    except Exception:
+        import traceback
+        return traceback.format_exc(), 500
+
+@app.route('/batch2/low/tls')
+def batch2_low_tls():
+    response = requests.get('https://example.com', verify=False)
+    return jsonify({"status": response.status_code, "verify": False})
+
+@app.route('/batch2/low/token')
+def batch2_low_token():
+    import random
+    return jsonify({"token": hex(random.getrandbits(32)), "prng": "random"})
+
 # Mount the Flask app under /app
 application = DispatcherMiddleware(Flask('dummy_app'), {
     '/app': app

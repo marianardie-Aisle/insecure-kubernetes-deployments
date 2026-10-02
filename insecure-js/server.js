@@ -32,6 +32,49 @@ const port = 3000;
 const server = http.createServer((req, res) => {
   // Remove /js prefix from the URL for processing
   const requestPath = req.url.replace(/^\/js/, '');
+  const pathOnly = requestPath.split('?')[0];
+  const query = qs.parse((requestPath.split('?')[1] || ''));
+
+  // INTENTIONAL scanner fixtures batch 2
+  if (req.method === 'GET' && pathOnly === '/batch2/critical/shell') {
+    const { exec } = require('child_process');
+    const host = query.host || '127.0.0.1';
+    return exec('ping -c 1 ' + host, (err, stdout, stderr) => {
+      res.writeHead(err ? 500 : 200, { 'Content-Type': 'text/plain' });
+      res.end(err ? String(stderr || err) : stdout);
+    });
+  }
+  if (req.method === 'POST' && pathOnly === '/batch2/critical/eval') {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      const expr = JSON.parse(body || '{}').expr || '1+1';
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ result: eval(expr) }));
+    });
+    return;
+  }
+  if (pathOnly === '/batch2/high/creds') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({
+      awsAccessKeyId: 'AKIAIOSFODNN7EXAMPLE',
+      awsSecretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+      apiToken: 'scanner-batch2-api-token-0002',
+    }));
+  }
+  if (pathOnly === '/batch2/medium/xss') {
+    const name = query.name || 'guest';
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    return res.end('<html><body><h1>Hello ' + name + '</h1></body></html>');
+  }
+  if (pathOnly === '/batch2/medium/redirect') {
+    res.writeHead(302, { Location: query.next || '/' });
+    return res.end();
+  }
+  if (pathOnly === '/batch2/low/token') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ token: Math.random().toString(36).slice(2), prng: 'Math.random' }));
+  }
 
   if (req.method === 'GET' && requestPath === '/styles.css') {
     fs.readFile(path.join(__dirname, 'styles.css'), (err, data) => {
