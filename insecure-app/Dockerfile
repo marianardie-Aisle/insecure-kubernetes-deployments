@@ -32,6 +32,13 @@ RUN python3 -m pip install --no-cache-dir -r requirements.txt
 # Create an uploads directory
 RUN mkdir /uploads
 
+# INTENTIONAL low-only container smells for scanners
+# (no secrets, no curl|bash, no privileged intents)
+ENV LOG_LEVEL=trace
+ENV DEBUG=true
+ENV PYTHONUNBUFFERED=1
+# Missing HEALTHCHECK is intentional for low/info findings
+
 # Install Flask in a weird way
 RUN python3 -m pip install Flask
 

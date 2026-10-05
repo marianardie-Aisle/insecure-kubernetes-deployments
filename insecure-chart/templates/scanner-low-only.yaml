@@ -1,0 +1,87 @@
+# INTENTIONAL scanner dogfood fixtures — LOW severity only
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: scanner-low-only
+---
+# LOW: deprecated API version
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: low-only-deprecated-api
+  namespace: scanner-low-only
+  labels:
+    aisle.io/fixture: "low-only"
+    aisle.io/severity: "low"
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: low-only-deprecated-api
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.21
+---
+# LOW: missing resource requests/limits + readOnlyRootFilesystem unset
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: low-only-no-resources
+  namespace: scanner-low-only
+  labels:
+    aisle.io/fixture: "low-only"
+    aisle.io/severity: "low"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: low-only-no-resources
+  template:
+    metadata:
+      labels:
+        app: low-only-no-resources
+    spec:
+      containers:
+        - name: app
+          image: nginx:1.21
+          ports:
+            - containerPort: 80
+          securityContext:
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+            runAsNonRoot: false
+---
+# LOW: debug / verbose ConfigMap (non-secret smells)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: low-only-debug
+  namespace: scanner-low-only
+  labels:
+    aisle.io/fixture: "low-only"
+    aisle.io/severity: "low"
+data:
+  DEBUG: "true"
+  LOG_LEVEL: "trace"
+  ENABLE_PROFILING: "true"
+  VERBOSE_ERRORS: "true"
+  INTERNAL_FEATURE_FLAG: "low-only-debug-enabled"
+---
+# LOW: Service without explicit named port hygiene / ClusterIP defaults
+apiVersion: v1
+kind: Service
+metadata:
+  name: low-only-svc
+  namespace: scanner-low-only
+  labels:
+    aisle.io/severity: "low"
+spec:
+  type: ClusterIP
+  selector:
+    app: low-only-no-resources
+  ports:
+    - port: 80
+      targetPort: 80

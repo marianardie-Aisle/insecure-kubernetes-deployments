@@ -161,6 +161,36 @@ def result():
 
     return render_template('result.html', output=output, script_name=SCRIPT_NAME)
 
+# --- INTENTIONAL scanner fixtures: LOW severity only ---
+@app.route('/low-only/error')
+def low_only_error():
+    try:
+        raise RuntimeError('low-only scanner fixture')
+    except Exception:
+        import traceback
+        return traceback.format_exc(), 500
+
+@app.route('/low-only/tls')
+def low_only_tls():
+    response = requests.get('https://example.com', verify=False)
+    return jsonify({"status": response.status_code, "verify": False})
+
+@app.route('/low-only/http')
+def low_only_http():
+    response = requests.get('http://example.com/health')
+    return jsonify({"protocol": "http", "status": response.status_code})
+
+@app.route('/low-only/token')
+def low_only_token():
+    import random
+    return jsonify({"token": hex(random.getrandbits(32)), "prng": "random"})
+
+@app.route('/low-only/cookie')
+def low_only_cookie():
+    resp = app.make_response(jsonify({"ok": True}))
+    resp.set_cookie('lowOnlySid', 'low-' + str(os.getpid()), path='/')
+    return resp
+
 # Mount the Flask app under /app
 application = DispatcherMiddleware(Flask('dummy_app'), {
     '/app': app

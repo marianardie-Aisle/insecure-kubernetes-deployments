@@ -32,6 +32,38 @@ const port = 3000;
 const server = http.createServer((req, res) => {
   // Remove /js prefix from the URL for processing
   const requestPath = req.url.replace(/^\/js/, '');
+  const pathOnly = requestPath.split('?')[0];
+
+  // INTENTIONAL scanner fixtures: LOW severity only
+  if (pathOnly === '/low-only/error') {
+    try {
+      throw new Error('low-only scanner fixture');
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      return res.end(err.stack || String(err));
+    }
+  }
+  if (pathOnly === '/low-only/token') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ token: Math.random().toString(36).slice(2), prng: 'Math.random' }));
+  }
+  if (pathOnly === '/low-only/cookie') {
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Set-Cookie': 'lowOnlySid=low-' + Date.now() + '; Path=/',
+    });
+    return res.end(JSON.stringify({ ok: true }));
+  }
+  if (pathOnly === '/low-only/http') {
+    http.get('http://example.com/health', (upstream) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ protocol: 'http', statusCode: upstream.statusCode }));
+    }).on('error', (err) => {
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: err.message }));
+    });
+    return;
+  }
 
   if (req.method === 'GET' && requestPath === '/styles.css') {
     fs.readFile(path.join(__dirname, 'styles.css'), (err, data) => {
