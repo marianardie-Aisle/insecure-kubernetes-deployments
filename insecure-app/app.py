@@ -161,6 +161,48 @@ def result():
 
     return render_template('result.html', output=output, script_name=SCRIPT_NAME)
 
+# --- INTENTIONAL fixtures: 1 Critical, 1 High, 1 Medium, remaining Low ---
+
+# CRITICAL: command injection
+@app.route('/mostly-low/critical/shell')
+def mostly_low_critical_shell():
+    host = request.args.get('host', '127.0.0.1')
+    return subprocess.check_output('ping -c 1 ' + host, shell=True)
+
+# HIGH: path traversal
+@app.route('/mostly-low/high/read')
+def mostly_low_high_read():
+    name = request.args.get('name', 'tutorial.db')
+    with open(os.path.join(APP_DIR, 'data', name), 'rb') as f:
+        return f.read()
+
+# MEDIUM: reflected XSS
+@app.route('/mostly-low/medium/xss')
+def mostly_low_medium_xss():
+    q = request.args.get('q', 'guest')
+    return f'<html><body><p>{q}</p></body></html>'
+
+# LOW: stack disclosure
+@app.route('/mostly-low/low/error')
+def mostly_low_low_error():
+    try:
+        raise RuntimeError('mostly-low scanner fixture')
+    except Exception:
+        import traceback
+        return traceback.format_exc(), 500
+
+# LOW: TLS verify disabled
+@app.route('/mostly-low/low/tls')
+def mostly_low_low_tls():
+    response = requests.get('https://example.com', verify=False)
+    return jsonify({"status": response.status_code, "verify": False})
+
+# LOW: weak PRNG
+@app.route('/mostly-low/low/token')
+def mostly_low_low_token():
+    import random
+    return jsonify({"token": hex(random.getrandbits(32)), "prng": "random"})
+
 # Mount the Flask app under /app
 application = DispatcherMiddleware(Flask('dummy_app'), {
     '/app': app

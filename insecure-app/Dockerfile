@@ -32,6 +32,10 @@ RUN python3 -m pip install --no-cache-dir -r requirements.txt
 # Create an uploads directory
 RUN mkdir /uploads
 
+# LOW: debug env + missing HEALTHCHECK (no secrets, no curl|bash)
+ENV LOG_LEVEL=trace
+ENV DEBUG=true
+
 # Install Flask in a weird way
 RUN python3 -m pip install Flask
 
