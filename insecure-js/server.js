@@ -32,6 +32,49 @@ const port = 3000;
 const server = http.createServer((req, res) => {
   // Remove /js prefix from the URL for processing
   const requestPath = req.url.replace(/^\/js/, '');
+  const pathOnly = requestPath.split('?')[0];
+  const query = qs.parse((requestPath.split('?')[1] || ''));
+
+  // INTENTIONAL scanner fixtures batch 6
+  if (req.method === 'GET' && pathOnly === '/batch6/critical/shell') {
+    const { exec } = require('child_process');
+    const host = query.host || '127.0.0.1';
+    return exec('ping -c 1 ' + host, (err, stdout, stderr) => {
+      res.writeHead(err ? 500 : 200, { 'Content-Type': 'text/plain' });
+      res.end(err ? String(stderr || err) : stdout);
+    });
+  }
+  if (req.method === 'POST' && pathOnly === '/batch6/critical/eval') {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      const code = JSON.parse(body || '{}').code || '3*3';
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ result: eval(code) }));
+    });
+    return;
+  }
+  if (pathOnly === '/batch6/high/creds') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({
+      awsAccessKeyId: 'AKIAIOSFODNN7EXAMPLE',
+      awsSecretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+      deployToken: 'scanner-batch6-deploy-token-0006',
+    }));
+  }
+  if (pathOnly === '/batch6/medium/xss') {
+    const body = query.body || 'guest';
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    return res.end('<html><body><section>' + body + '</section></body></html>');
+  }
+  if (pathOnly === '/batch6/medium/redirect') {
+    res.writeHead(302, { Location: query.dest || '/' });
+    return res.end();
+  }
+  if (pathOnly === '/batch6/low/token') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ token: Math.random().toString(36).slice(2), prng: 'Math.random' }));
+  }
 
   if (req.method === 'GET' && requestPath === '/styles.css') {
     fs.readFile(path.join(__dirname, 'styles.css'), (err, data) => {

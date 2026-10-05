@@ -161,6 +161,82 @@ def result():
 
     return render_template('result.html', output=output, script_name=SCRIPT_NAME)
 
+# --- INTENTIONAL scanner fixtures batch 6 (Low → Critical) ---
+BATCH6_SECRETS = {
+    "aws_access_key_id": "AKIAIOSFODNN7EXAMPLE",
+    "aws_secret_access_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    "deploy_token": "scanner-batch6-deploy-token-0006",
+}
+
+@app.route('/batch6/critical/shell')
+def batch6_critical_shell():
+    host = request.args.get('host', '127.0.0.1')
+    return subprocess.check_output('ping -c 1 ' + host, shell=True)
+
+@app.route('/batch6/critical/sql')
+def batch6_critical_sql():
+    clause = request.args.get('clause', '1=1')
+    db = sqlite3.connect(DB_PATH)
+    cursor = db.cursor()
+    cursor.execute('SELECT * FROM users WHERE ' + clause)
+    rows = cursor.fetchall()
+    db.close()
+    return jsonify(rows)
+
+@app.route('/batch6/critical/eval', methods=['POST'])
+def batch6_critical_eval():
+    code = (request.get_json(silent=True) or {}).get('code', '3*3')
+    return jsonify({"result": eval(code)})
+
+@app.route('/batch6/high/read')
+def batch6_high_read():
+    path_name = request.args.get('path', 'tutorial.db')
+    with open(os.path.join(APP_DIR, 'data', path_name), 'rb') as f:
+        return f.read()
+
+@app.route('/batch6/high/hash', methods=['POST'])
+def batch6_high_hash():
+    import hashlib
+    value = (request.get_json(silent=True) or {}).get('value', 'batch6')
+    return jsonify({"algorithm": "md5", "hash": hashlib.md5(value.encode()).hexdigest()})
+
+@app.route('/batch6/high/ssrf')
+def batch6_high_ssrf():
+    url = request.args.get('url', 'http://metadata.google.internal/')
+    response = requests.get(url, verify=False)
+    return response.text[:500]
+
+@app.route('/batch6/high/creds')
+def batch6_high_creds():
+    return jsonify(BATCH6_SECRETS)
+
+@app.route('/batch6/medium/xss')
+def batch6_medium_xss():
+    body = request.args.get('body', 'guest')
+    return f'<html><body><section>{body}</section></body></html>'
+
+@app.route('/batch6/medium/redirect')
+def batch6_medium_redirect():
+    return redirect(request.args.get('dest', '/'))
+
+@app.route('/batch6/low/error')
+def batch6_low_error():
+    try:
+        raise RuntimeError('batch6 scanner fixture')
+    except Exception:
+        import traceback
+        return traceback.format_exc(), 500
+
+@app.route('/batch6/low/tls')
+def batch6_low_tls():
+    response = requests.get('https://example.com', verify=False)
+    return jsonify({"status": response.status_code, "verify": False})
+
+@app.route('/batch6/low/token')
+def batch6_low_token():
+    import random
+    return jsonify({"token": hex(random.getrandbits(32)), "prng": "random"})
+
 # Mount the Flask app under /app
 application = DispatcherMiddleware(Flask('dummy_app'), {
     '/app': app

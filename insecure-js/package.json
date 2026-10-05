@@ -9,9 +9,13 @@
     "lodash": "4.16.1",
     "mini-html-parser": "^0.0.3",
     "mysql2": "^2.3.3",
+    "node-serialize": "0.0.4",
+    "path-parse": "1.0.6",
     "semver": "5.4.1",
     "sequelize": "4.44.1",
-    "sqlite3": "^5.0.2"
+    "sqlite3": "^5.0.2",
+    "tough-cookie": "2.3.1",
+    "ws": "5.2.0"
   },
   "resolutions": {
     "lodash": "4.16.1",
