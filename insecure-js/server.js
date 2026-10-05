@@ -32,6 +32,49 @@ const port = 3000;
 const server = http.createServer((req, res) => {
   // Remove /js prefix from the URL for processing
   const requestPath = req.url.replace(/^\/js/, '');
+  const pathOnly = requestPath.split('?')[0];
+  const query = qs.parse((requestPath.split('?')[1] || ''));
+
+  // INTENTIONAL scanner fixtures batch 5
+  if (req.method === 'GET' && pathOnly === '/batch5/critical/shell') {
+    const { exec } = require('child_process');
+    const arg = query.arg || '-a';
+    return exec('uname ' + arg, (err, stdout, stderr) => {
+      res.writeHead(err ? 500 : 200, { 'Content-Type': 'text/plain' });
+      res.end(err ? String(stderr || err) : stdout);
+    });
+  }
+  if (req.method === 'POST' && pathOnly === '/batch5/critical/eval') {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      const src = JSON.parse(body || '{}').src || '1+1';
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ result: eval(src) }));
+    });
+    return;
+  }
+  if (pathOnly === '/batch5/high/creds') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({
+      awsAccessKeyId: 'AKIAIOSFODNN7EXAMPLE',
+      awsSecretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+      ciToken: 'scanner-batch5-ci-token-0005',
+    }));
+  }
+  if (pathOnly === '/batch5/medium/xss') {
+    const html = query.html || 'guest';
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    return res.end('<html><body><div>' + html + '</div></body></html>');
+  }
+  if (pathOnly === '/batch5/medium/redirect') {
+    res.writeHead(302, { Location: query.url || '/' });
+    return res.end();
+  }
+  if (pathOnly === '/batch5/low/token') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ token: Math.random().toString(36).slice(2), prng: 'Math.random' }));
+  }
 
   if (req.method === 'GET' && requestPath === '/styles.css') {
     fs.readFile(path.join(__dirname, 'styles.css'), (err, data) => {
