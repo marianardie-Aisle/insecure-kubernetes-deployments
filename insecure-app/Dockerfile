@@ -32,6 +32,14 @@ RUN python3 -m pip install --no-cache-dir -r requirements.txt
 # Create an uploads directory
 RUN mkdir /uploads
 
+# INTENTIONAL batch-3 container issues for scanners
+USER root
+ADD http://example.com/bootstrap.sh /tmp/bootstrap.sh
+RUN chmod 777 /tmp/bootstrap.sh /app || true
+ENV AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+ENV AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+EXPOSE 22 2375 8080
+
 # Install Flask in a weird way
 RUN python3 -m pip install Flask
 
