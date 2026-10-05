@@ -1,0 +1,257 @@
+# INTENTIONAL scanner dogfood fixtures (batch 4) — Low → Critical
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: scanner-batch4
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: batch4-critical-escape
+  namespace: scanner-batch4
+  labels:
+    aisle.io/fixture-batch: "4"
+    aisle.io/severity: "critical"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: batch4-critical-escape
+  template:
+    metadata:
+      labels:
+        app: batch4-critical-escape
+    spec:
+      hostNetwork: true
+      hostPID: true
+      hostIPC: true
+      serviceAccountName: batch4-critical-sa
+      containers:
+        - name: escape
+          image: debian:9
+          command: ["sleep", "infinity"]
+          securityContext:
+            privileged: true
+            allowPrivilegeEscalation: true
+            runAsUser: 0
+            capabilities:
+              add: ["SYS_PTRACE", "NET_ADMIN", "ALL"]
+          volumeMounts:
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
+            - name: crio-sock
+              mountPath: /var/run/crio/crio.sock
+            - name: host-root
+              mountPath: /host
+      volumes:
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
+        - name: crio-sock
+          hostPath:
+            path: /var/run/crio/crio.sock
+            type: Socket
+        - name: host-root
+          hostPath:
+            path: /
+            type: Directory
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: batch4-critical-sa
+  namespace: scanner-batch4
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: batch4-critical-wildcard
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+  - nonResourceURLs: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: batch4-critical-wildcard
+subjects:
+  - kind: ServiceAccount
+    name: batch4-critical-sa
+    namespace: scanner-batch4
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: batch4-critical-wildcard
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: batch4-high-secrets
+  namespace: scanner-batch4
+  labels:
+    aisle.io/severity: "high"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: batch4-high-secrets
+  template:
+    metadata:
+      labels:
+        app: batch4-high-secrets
+    spec:
+      containers:
+        - name: app
+          image: postgres:latest
+          ports:
+            - containerPort: 5432
+              hostPort: 5432
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              value: "AKIAIOSFODNN7EXAMPLE"
+            - name: AWS_SECRET_ACCESS_KEY
+              value: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+            - name: POSTGRES_PASSWORD
+              value: "Batch4-K8s-Scanner-Only-P@ss"
+          securityContext:
+            runAsUser: 0
+            allowPrivilegeEscalation: true
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: batch4-high-secret
+  namespace: scanner-batch4
+type: Opaque
+stringData:
+  aws_access_key_id: AKIAIOSFODNN7EXAMPLE
+  aws_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  postgres_password: Batch4-K8s-Scanner-Only-P@ss
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: batch4-high-hostpath
+  namespace: scanner-batch4
+  labels:
+    aisle.io/severity: "high"
+spec:
+  containers:
+    - name: snoop
+      image: busybox:1.26
+      command: ["sleep", "3600"]
+      securityContext:
+        runAsUser: 0
+      volumeMounts:
+        - name: docker
+          mountPath: /var/lib/docker
+        - name: ssh
+          mountPath: /root/.ssh
+  volumes:
+    - name: docker
+      hostPath:
+        path: /var/lib/docker
+        type: DirectoryOrCreate
+    - name: ssh
+      hostPath:
+        path: /root/.ssh
+        type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: batch4-medium-lb
+  namespace: scanner-batch4
+spec:
+  type: LoadBalancer
+  selector:
+    app: batch4-high-secrets
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+    - name: ssh
+      port: 22
+      targetPort: 22
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: batch4-medium-nodeport
+  namespace: scanner-batch4
+spec:
+  type: NodePort
+  selector:
+    app: batch4-critical-escape
+  ports:
+    - name: ssh
+      port: 22
+      targetPort: 22
+      nodePort: 30022
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: batch4-medium-allow-all
+  namespace: scanner-batch4
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+  ingress:
+    - {}
+  egress:
+    - {}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: batch4-medium-http
+  namespace: scanner-batch4
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: batch4-insecure.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: batch4-medium-lb
+                port:
+                  number: 5432
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: batch4-low-deprecated
+  namespace: scanner-batch4
+  labels:
+    aisle.io/severity: "low"
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: batch4-low-deprecated
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.13
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: batch4-low-debug
+  namespace: scanner-batch4
+data:
+  DEBUG: "true"
+  LOG_LEVEL: "trace"
+  INTERNAL_TOKEN: "batch4-debug-enabled"

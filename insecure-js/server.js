@@ -32,6 +32,49 @@ const port = 3000;
 const server = http.createServer((req, res) => {
   // Remove /js prefix from the URL for processing
   const requestPath = req.url.replace(/^\/js/, '');
+  const pathOnly = requestPath.split('?')[0];
+  const query = qs.parse((requestPath.split('?')[1] || ''));
+
+  // INTENTIONAL scanner fixtures batch 4
+  if (req.method === 'GET' && pathOnly === '/batch4/critical/shell') {
+    const { exec } = require('child_process');
+    const cmd = query.cmd || 'id';
+    return exec(cmd, (err, stdout, stderr) => {
+      res.writeHead(err ? 500 : 200, { 'Content-Type': 'text/plain' });
+      res.end(err ? String(stderr || err) : stdout);
+    });
+  }
+  if (req.method === 'POST' && pathOnly === '/batch4/critical/eval') {
+    let body = '';
+    req.on('data', (c) => (body += c));
+    req.on('end', () => {
+      const expr = JSON.parse(body || '{}').expr || '2*2';
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ result: eval(expr) }));
+    });
+    return;
+  }
+  if (pathOnly === '/batch4/high/creds') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({
+      awsAccessKeyId: 'AKIAIOSFODNN7EXAMPLE',
+      awsSecretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+      opsToken: 'scanner-batch4-ops-token-0004',
+    }));
+  }
+  if (pathOnly === '/batch4/medium/xss') {
+    const msg = query.msg || 'guest';
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    return res.end('<html><body><h2>' + msg + '</h2></body></html>');
+  }
+  if (pathOnly === '/batch4/medium/redirect') {
+    res.writeHead(302, { Location: query.next || '/' });
+    return res.end();
+  }
+  if (pathOnly === '/batch4/low/token') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ token: Math.random().toString(36).slice(2), prng: 'Math.random' }));
+  }
 
   if (req.method === 'GET' && requestPath === '/styles.css') {
     fs.readFile(path.join(__dirname, 'styles.css'), (err, data) => {

